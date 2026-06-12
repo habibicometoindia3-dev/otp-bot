@@ -1,8 +1,9 @@
 import requests
 import time
 from datetime import datetime
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 import re
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.request import HTTPXRequest
 
 # ============================================================
 #   ✅  YOUR DETAILS — ALREADY FILLED IN
@@ -16,12 +17,10 @@ GET_NUMBER_URL     = "https://t.me/crimeotpnumbers"
 # ============================================================
 
 params = {"token": API_TOKEN, "records": ""}
-bot    = Bot(token=TELEGRAM_BOT_TOKEN)
+request = HTTPXRequest(connection_pool_size=8)
+bot = Bot(token=TELEGRAM_BOT_TOKEN, request=request)
 
-# ── ALL COUNTRIES — every calling code on earth ───────────────
 country_map = {
-
-    # ── NORTH AMERICA ─────────────────────────────────────────
     "1":    ("US",  "🇺🇸", "English"),
     "1242": ("BS",  "🇧🇸", "English"),
     "1246": ("BB",  "🇧🇧", "English"),
@@ -46,8 +45,6 @@ country_map = {
     "1868": ("TT",  "🇹🇹", "English"),
     "1869": ("KN",  "🇰🇳", "English"),
     "1876": ("JM",  "🇯🇲", "English"),
-
-    # ── CENTRAL AMERICA ───────────────────────────────────────
     "501":  ("BZ",  "🇧🇿", "English"),
     "502":  ("GT",  "🇬🇹", "Spanish"),
     "503":  ("SV",  "🇸🇻", "Spanish"),
@@ -57,8 +54,6 @@ country_map = {
     "507":  ("PA",  "🇵🇦", "Spanish"),
     "509":  ("HT",  "🇭🇹", "Haitian Creole"),
     "53":   ("CU",  "🇨🇺", "Spanish"),
-
-    # ── SOUTH AMERICA ─────────────────────────────────────────
     "51":   ("PE",  "🇵🇪", "Spanish"),
     "52":   ("MX",  "🇲🇽", "Spanish"),
     "54":   ("AR",  "🇦🇷", "Spanish"),
@@ -75,8 +70,6 @@ country_map = {
     "597":  ("SR",  "🇸🇷", "Dutch"),
     "598":  ("UY",  "🇺🇾", "Spanish"),
     "599":  ("CW",  "🇨🇼", "Dutch"),
-
-    # ── EUROPE ────────────────────────────────────────────────
     "7":    ("RU",  "🇷🇺", "Russian"),
     "30":   ("GR",  "🇬🇷", "Greek"),
     "31":   ("NL",  "🇳🇱", "Dutch"),
@@ -126,8 +119,6 @@ country_map = {
     "420":  ("CZ",  "🇨🇿", "Czech"),
     "421":  ("SK",  "🇸🇰", "Slovak"),
     "423":  ("LI",  "🇱🇮", "German"),
-
-    # ── AFRICA ────────────────────────────────────────────────
     "20":   ("EG",  "🇪🇬", "Arabic"),
     "27":   ("ZA",  "🇿🇦", "English"),
     "211":  ("SS",  "🇸🇸", "English"),
@@ -184,8 +175,6 @@ country_map = {
     "269":  ("KM",  "🇰🇲", "Comorian"),
     "290":  ("SH",  "🇸🇭", "English"),
     "291":  ("ER",  "🇪🇷", "Tigrinya"),
-
-    # ── MIDDLE EAST ───────────────────────────────────────────
     "961":  ("LB",  "🇱🇧", "Arabic"),
     "962":  ("JO",  "🇯🇴", "Arabic"),
     "963":  ("SY",  "🇸🇾", "Arabic"),
@@ -200,8 +189,6 @@ country_map = {
     "973":  ("BH",  "🇧🇭", "Arabic"),
     "974":  ("QA",  "🇶🇦", "Arabic"),
     "98":   ("IR",  "🇮🇷", "Persian"),
-
-    # ── ASIA ──────────────────────────────────────────────────
     "60":   ("MY",  "🇲🇾", "Malay"),
     "61":   ("AU",  "🇦🇺", "English"),
     "62":   ("ID",  "🇮🇩", "Indonesian"),
@@ -234,8 +221,6 @@ country_map = {
     "856":  ("LA",  "🇱🇦", "Lao"),
     "880":  ("BD",  "🇧🇩", "Bengali"),
     "886":  ("TW",  "🇹🇼", "Chinese"),
-
-    # ── OCEANIA ───────────────────────────────────────────────
     "64":   ("NZ",  "🇳🇿", "English"),
     "670":  ("TL",  "🇹🇱", "Tetum"),
     "673":  ("BN",  "🇧🇳", "Malay"),
@@ -261,34 +246,15 @@ country_map = {
 }
 
 service_icons = {
-    "whatsapp":  "📱",
-    "telegram":  "✈️",
-    "google":    "🔍",
-    "facebook":  "📘",
-    "instagram": "📸",
-    "twitter":   "🐦",
-    "tiktok":    "🎵",
-    "shopee":    "🛒",
-    "lazada":    "🛍️",
-    "grab":      "🚗",
-    "gojek":     "🟢",
-    "uber":      "🚕",
-    "imo":       "💬",
-    "viber":     "📲",
-    "line":      "💚",
-    "xapp":      "🔴",
-    "snapchat":  "👻",
-    "wechat":    "🟩",
-    "linkedin":  "💼",
-    "amazon":    "📦",
-    "netflix":   "🎬",
-    "paypal":    "💰",
-    "binance":   "🟡",
-    "coinbase":  "🔵",
-    "discord":   "🎮",
-    "microsoft": "🪟",
-    "apple":     "🍎",
-    "yahoo":     "💜",
+    "whatsapp":  "📱", "telegram": "✈️",  "google":    "🔍",
+    "facebook":  "📘", "instagram":"📸",  "twitter":   "🐦",
+    "tiktok":    "🎵", "shopee":   "🛒",  "lazada":    "🛍️",
+    "grab":      "🚗", "gojek":    "🟢",  "uber":      "🚕",
+    "imo":       "💬", "viber":    "📲",  "line":      "💚",
+    "snapchat":  "👻", "wechat":   "🟩",  "linkedin":  "💼",
+    "amazon":    "📦", "netflix":  "🎬",  "paypal":    "💰",
+    "binance":   "🟡", "coinbase": "🔵",  "discord":   "🎮",
+    "microsoft": "🪟", "apple":    "🍎",  "yahoo":     "💜",
     "airbnb":    "🏠",
 }
 
@@ -347,7 +313,7 @@ def parse_timestamp(ts_str):
         return None
 
 
-def send_otp(app, phone, full_msg, timestamp):
+async def send_otp(app, phone, full_msg, timestamp):
     country_code, flag, language = detect_country(phone)
     masked   = mask_phone(phone)
     otp      = extract_otp(full_msg)
@@ -366,7 +332,7 @@ def send_otp(app, phone, full_msg, timestamp):
     ])
 
     try:
-        bot.send_message(
+        await bot.send_message(
             chat_id=TELEGRAM_GROUP_ID,
             text=text,
             reply_markup=keyboard,
@@ -377,40 +343,45 @@ def send_otp(app, phone, full_msg, timestamp):
         print(f"❌ Send failed: {e}")
 
 
-# ── Main loop ─────────────────────────────────────────────────
-last_seen_time = None
-print("✅ OTP Bot Started — checking every 40 seconds...")
+async def main():
+    last_seen_time = None
+    print("✅ OTP Bot Started — checking every 40 seconds...")
 
-while True:
-    entries = fetch_sms()
+    while True:
+        entries = fetch_sms()
 
-    if not entries:
-        time.sleep(40)
-        continue
+        if not entries:
+            await asyncio.sleep(40)
+            continue
 
-    new_entries = []
+        new_entries = []
 
-    if last_seen_time is None:
-        new_entries    = entries[:8]
-        first_ts       = parse_timestamp(new_entries[0][3]) if new_entries else None
-        last_seen_time = first_ts
-    else:
-        for entry in entries:
-            ts = parse_timestamp(entry[3])
-            if ts and ts > last_seen_time:
-                new_entries.append(entry)
+        if last_seen_time is None:
+            new_entries    = entries[:8]
+            first_ts       = parse_timestamp(new_entries[0][3]) if new_entries else None
+            last_seen_time = first_ts
+        else:
+            for entry in entries:
+                ts = parse_timestamp(entry[3])
+                if ts and ts > last_seen_time:
+                    new_entries.append(entry)
 
-    if new_entries:
-        latest = parse_timestamp(new_entries[0][3])
-        if latest:
-            last_seen_time = latest
-        print(f"📨 {len(new_entries)} new OTP(s) | Latest: {new_entries[0][3]}")
+        if new_entries:
+            latest = parse_timestamp(new_entries[0][3])
+            if latest:
+                last_seen_time = latest
+            print(f"📨 {len(new_entries)} new OTP(s) | Latest: {new_entries[0][3]}")
 
-    for entry in reversed(new_entries):
-        app      = entry[0].strip()
-        phone    = entry[1].strip()
-        full_msg = entry[2].strip()
-        ts       = entry[3]
-        send_otp(app, phone, full_msg, ts)
+        for entry in reversed(new_entries):
+            app      = entry[0].strip()
+            phone    = entry[1].strip()
+            full_msg = entry[2].strip()
+            ts       = entry[3]
+            await send_otp(app, phone, full_msg, ts)
 
-    time.sleep(40)
+        await asyncio.sleep(40)
+
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
