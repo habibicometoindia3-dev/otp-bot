@@ -4,7 +4,7 @@ import time
 import asyncio
 from datetime import datetime
 import re
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update, CopyTextButton
 from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.request import HTTPXRequest
 
@@ -321,7 +321,7 @@ def build_otp_message(app, phone, full_msg):
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🔔 Channel ↗", url=f"https://t.me/{CHANNEL_USERNAME}"),
-           InlineKeyboardButton(f"🛡 📋 {otp}", callback_data=f"otp_{otp}", copy_text={"text": otp}),
+           InlineKeyboardButton(f"🛡 📋 {otp}", copy_text=CopyTextButton(otp)),
         ],
         [
             InlineKeyboardButton("📞 Get Number ↗", url=GET_NUMBER_URL),
