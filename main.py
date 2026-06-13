@@ -1,12 +1,12 @@
 import requests
 import time
+import asyncio
 from datetime import datetime
 import re
-from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CommandHandler, ContextTypes
 from telegram.request import HTTPXRequest
 
-# ============================================================
-#   ✅  YOUR DETAILS — ALREADY FILLED IN
 # ============================================================
 API_URL            = "http://51.77.216.195/crapi/lamix/viewstats"
 API_TOKEN          = "f3RpgoVSVmtnY2lGRYpUX1OYblR7d4ZEhoKMeWeBcIQ="
@@ -17,8 +17,6 @@ GET_NUMBER_URL     = "https://t.me/crimeotpnumbers"
 # ============================================================
 
 params = {"token": API_TOKEN, "records": ""}
-request = HTTPXRequest(connection_pool_size=8)
-bot = Bot(token=TELEGRAM_BOT_TOKEN, request=request)
 
 country_map = {
     "1":    ("US",  "🇺🇸", "English"),
@@ -313,14 +311,12 @@ def parse_timestamp(ts_str):
         return None
 
 
-async def send_otp(app, phone, full_msg, timestamp):
+def build_otp_message(app, phone, full_msg):
     country_code, flag, language = detect_country(phone)
     masked   = mask_phone(phone)
     otp      = extract_otp(full_msg)
     svc_icon = get_service_icon(app)
-
-    text = f"{flag} {country_code} | {svc_icon} {masked} | 🌐 {language}"
-
+    text     = f"{flag} {country_code} | {svc_icon} {masked} | 🌐 {language}"
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🔔 Channel ↗", url=f"https://t.me/{CHANNEL_USERNAME}"),
@@ -330,20 +326,76 @@ async def send_otp(app, phone, full_msg, timestamp):
             InlineKeyboardButton("📞 Get Number ↗", url=GET_NUMBER_URL),
         ]
     ])
+    return text, keyboard, otp
 
+
+# ── Command handlers ──────────────────────────────────────────
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    welcome = (
+        "🤖 *CrimeOTP Bot is ACTIVE!* ✅\n\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "📡 Fetching OTPs every *40 seconds*\n"
+        "🌍 Supporting *200+ countries*\n"
+        "📱 Supporting *30+ services*\n"
+        "━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📌 *Commands:*\n"
+        "/start — Check bot status\n"
+        "/test — Send a sample OTP message\n"
+        "/status — Check API connection\n\n"
+        "📣 Join: @crimeotpnumbers"
+    )
+    await update.message.reply_text(welcome, parse_mode="Markdown")
+
+
+async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⏳ Sending sample OTP to channel...")
+
+    sample_entries = [
+        ("WhatsApp", "+923312345678", "Your WhatsApp code is 456-789. Don't share it."),
+        ("WhatsApp", "+628812345678", "Kode WhatsApp Anda 170-854. Jangan bagikan."),
+        ("Google",   "+919876543210", "Your Google verification code is 234567"),
+        ("Shopee",   "+628891234567", "Shopee OTP: 8823. Valid 5 minutes."),
+        ("Telegram", "+447712345678", "Your Telegram code: 12345"),
+    ]
+
+    bot = context.bot
+    for app, phone, msg in sample_entries:
+        text, keyboard, otp = build_otp_message(app, phone, msg)
+        try:
+            await bot.send_message(
+                chat_id=TELEGRAM_GROUP_ID,
+                text=text,
+                reply_markup=keyboard
+            )
+            print(f"✅ Test sent: {phone} | OTP: {otp}")
+            await asyncio.sleep(1)
+        except Exception as e:
+            print(f"❌ Test failed: {e}")
+
+    await update.message.reply_text("✅ 5 sample OTPs sent to channel! Check @crimeotpnumbers")
+
+
+async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("⏳ Checking API connection...")
     try:
-        await bot.send_message(
-            chat_id=TELEGRAM_GROUP_ID,
-            text=text,
-            reply_markup=keyboard,
-            disable_notification=False
+        response = requests.get(API_URL, params=params, timeout=10)
+        data = response.json()
+        count = len(data) if isinstance(data, list) else 0
+        await update.message.reply_text(
+            f"✅ *API Connected!*\n\n"
+            f"📊 OTPs in panel: *{count}*\n"
+            f"🌐 API URL: `{API_URL}`\n"
+            f"⚡ Status: Online",
+            parse_mode="Markdown"
         )
-        print(f"✅ Sent → {masked} | {country_code} | OTP: {otp}")
     except Exception as e:
-        print(f"❌ Send failed: {e}")
+        await update.message.reply_text(f"❌ *API Error!*\n\n`{e}`", parse_mode="Markdown")
 
 
-async def main():
+# ── OTP polling loop ──────────────────────────────────────────
+
+async def otp_polling(bot: Bot):
     last_seen_time = None
     print("✅ OTP Bot Started — checking every 40 seconds...")
 
@@ -376,12 +428,37 @@ async def main():
             app      = entry[0].strip()
             phone    = entry[1].strip()
             full_msg = entry[2].strip()
-            ts       = entry[3]
-            await send_otp(app, phone, full_msg, ts)
+            text, keyboard, otp = build_otp_message(app, phone, full_msg)
+            try:
+                await bot.send_message(
+                    chat_id=TELEGRAM_GROUP_ID,
+                    text=text,
+                    reply_markup=keyboard
+                )
+                print(f"✅ Sent → {mask_phone(phone)} | OTP: {otp}")
+            except Exception as e:
+                print(f"❌ Send failed: {e}")
 
         await asyncio.sleep(40)
 
 
+# ── Main ──────────────────────────────────────────────────────
+
+async def main():
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start",  start_command))
+    app.add_handler(CommandHandler("test",   test_command))
+    app.add_handler(CommandHandler("status", status_command))
+
+    await app.initialize()
+    await app.start()
+    await app.updater.start_polling(drop_pending_updates=True)
+
+    print("✅ Bot commands active!")
+
+    await otp_polling(app.bot)
+
+
 if __name__ == "__main__":
-    import asyncio
     asyncio.run(main())
