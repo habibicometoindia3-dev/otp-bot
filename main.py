@@ -321,7 +321,7 @@ def build_otp_message(app, phone, full_msg):
     keyboard = InlineKeyboardMarkup([
         [
             InlineKeyboardButton("🔔 Channel ↗", url=f"https://t.me/{CHANNEL_USERNAME}"),
-            InlineKeyboardButton(f"🛡 {otp} 🟢", switch_inline_query=otp),
+            InlineKeyboardButton(f"🛡 📋 {otp}", copy_text=otp),
         ],
         [
             InlineKeyboardButton("📞 Get Number ↗", url=GET_NUMBER_URL),
