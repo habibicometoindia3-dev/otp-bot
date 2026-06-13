@@ -10,7 +10,7 @@ from telegram.request import HTTPXRequest
 
 # ============================================================
 API_URL            = "http://51.77.216.195/crapi/lamix/viewstats"
-API_TOKEN          = "f3RpgoVSVmtnY2lGRYpUX1OYblR7d4ZEhoKMeWeBcIQ="
+API_TOKEN          = "h4lSYnuBWGp4i1hnR4N0fXyGc3leYVdjSpaNVlaEeWs="
 TELEGRAM_BOT_TOKEN = "8843473690:AAGXbaAtxtpVct2jpzo41oqQHJYhYcsDif8"
 TELEGRAM_GROUP_ID  = -1004376576526
 CHANNEL_USERNAME   = "crimeotpnumbers"
